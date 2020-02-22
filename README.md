@@ -7,8 +7,8 @@ The default set of secrets are:
 ```json
 {
   "dbMasterUser": "postgres",
-  "dbMasterPassword: "password",
-  "sumologicEndpoint: ""
+  "dbMasterPassword": "password",
+  "sumologicEndpoint": ""
 }
 ```
 
