@@ -20,7 +20,7 @@ Cipher will also add a defaul set of tags:
 | Environment | :environment                           |
 | Cost_Code   | SP                                     |
 | Cost_Center | ENG                                    |
-| Name        | :app_name-secrets-manager-:environment |
+| Name        | :app_name-secretsmanager-:environment  |
 
 **Notes:**
 
