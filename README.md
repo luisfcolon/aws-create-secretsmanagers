@@ -40,3 +40,7 @@ You will need to have your Okta Verify app open on your phone. The script will g
 ```
 
 Follow the instructions provided. When the script is complete you will have a secretsmanager setup on edge, staging, and prod.
+
+## Example output
+
+![Cipher](./docs/images/cipher_final_output.png)
