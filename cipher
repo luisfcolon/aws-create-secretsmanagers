@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+
+set -o errexit
+set -o pipefail
+set -u
+
+clear
+
+bold=$(tput bold)
+reset=$(tput sgr0)
+
+purple=$(tput setaf 171)
+red=$(tput setaf 1)
+green=$(tput setaf 76)
+blue=$(tput setaf 38)
+cyan=$(tput setaf 6)
+yellow=$(tput setaf 3)
+white=$(tput setaf 7)
+light_grey=$(tput setaf 250)
+
+display_usage() {
+  cat <<EOM
+
+  ##### Create aws secretsmanagers #####
+
+  Required arugments:
+    - The only argument required is the project name
+    - Single word project names are prefered
+    - More than one word requires a dash inbetween them
+    - Acceptable formats:
+      - bookie
+      - sparkle-motion
+
+  Usage:
+    ./maker.sh project-name
+EOM
+}
+
+display_instructions() {
+  cat <<EOM
+Please have the Okta Verify app open on your phone and ready to use.
+When prompted, enter the MFA token and choose the requested environment profile.
+EOM
+}
+
+echo_header() {
+  echo
+  echo $purple$bold"---------------[ $@ ]---------------"$reset
+  echo
+}
+
+echo_subheader() {
+  echo
+  echo $cyan$bold$@$reset
+  echo
+}
+
+echo_success() {
+  echo $bold$green"✔"$reset $green$@$reset
+}
+
+echo_error() {
+  echo $bold$red"✖"$reset $red$@$reset
+}
+
+echo_warning() {
+  echo $bold$yellow"⌀"$reset $yellow$@$reset $bold$yellow"⌀"$reset
+}
+
+echo_bullet() {
+  echo $blue$bold"  •"$reset $blue$@$reset
+}
+
+echo_info() {
+  echo $blue$@$reset
+}
+
+echo_text() {
+  echo $white$@$reset
+}
+
+echo_info_content() {
+  echo -n $white$1 $reset
+  echo_info $2
+}
+
+password_prefix() {
+  echo "$(date | md5sum | head -c 4)"
+}
+
+generate_password() {
+  local environment=$1
+  local excluded_characters='"/\'
+  local profile="stash-$environment"
+
+  echo $(aws secretsmanager get-random-password --exclude-characters $excluded_characters --password-length 32 --require-each-included-type --no-include-space --output text --profile $profile)
+}
+
+secrets_json_string() {
+  local username=${1}
+  local password=${2}
+
+  echo "{\"dbMasterUser\": \"$username\", \"dbMasterPassword\": \"$password\", \"sumologicEndpoint\": \"\"}"
+}
+
+tags_string() {
+  local app_name=${1}
+  local environment=${2}
+  local cost_code="SP"
+  local cost_center="ENG"
+  local name="$app_name-secretsmanager-$environment"
+
+   echo "[{\"Key\": \"Name\", \"Value\": \"$name\"}, {\"Key\": \"Service\", \"Value\": \"$app_name\"}, {\"Key\": \"Environment\", \"Value\": \"$environment\"}, {\"Key\": \"Cost_Code\", \"Value\": \"SP\"}, {\"Key\": \"Cost_Center\", \"Value\": \"ENG\"}]"
+}
+
+if [ -z "$1" ]; then
+  display_usage
+  exit 1
+fi
+
+app_name=$1
+db_master_user="postgres"
+
+echo_header "Secretsmanagers for $app_name"
+display_instructions
+
+if ! brew ls --versions jq > /dev/null; then
+  echo
+  echo_text "Some dependencies are missing"
+  echo_bullet "Installing jq"
+  echo
+  brew install jq
+  echo
+fi
+
+#
+# Edge
+#
+environment="edge"
+profile="stash-$environment"
+secrets_name="$app_name-$environment"
+db_master_password_prefix=$(password_prefix)
+db_master_password_base=$(generate_password $environment)
+db_master_password="$db_master_password_prefix$db_master_password_base"
+secrets_string=$(secrets_json_string $db_master_user $db_master_password)
+tags_string=$(tags_string $app_name $environment)
+
+echo_subheader "Creating secretsmanager $app_name-$environment"
+echo_text "You will be prompted for an Okta Verify MFA token"
+echo_info_content "After entering the MFA token, please select:" "edge_engineers"
+stash-okta --profile stash-edge --force
+secretsmanager_edge=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
+echo
+echo_success "Created secretsmanager: $secrets_name"
+
+#
+# Staging
+#
+environment="staging"
+profile="stash-$environment"
+secrets_name="$app_name-$environment"
+db_master_password_prefix=$(password_prefix)
+db_master_password_base=$(generate_password $environment)
+db_master_password="$db_master_password_prefix$db_master_password_base"
+secrets_string=$(secrets_json_string $db_master_user $db_master_password)
+tags_string=$(tags_string $app_name $environment)
+
+echo_subheader "Creating secretsmanager $app_name-$environment"
+echo_text "You will be prompted for another Okta Verify MFA token"
+echo
+echo_warning "DO NOT USE THE SAME TOKEN that was just used for edge"
+echo_warning "Let Okta Verify cycle to the next token"
+echo
+echo_info_content "After entering the MFA token, please select:" "staging_backend-eng"
+stash-okta --profile stash-staging --force
+secretsmanager_staging=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
+echo
+echo_success "Created secretsmanager: $secrets_name"
+
+#
+# Prod
+#
+environment="prod"
+profile="stash-$environment"
+secrets_name="$app_name-$environment"
+db_master_password_prefix=$(password_prefix)
+db_master_password_base=$(generate_password $environment)
+db_master_password="$db_master_password_prefix$db_master_password_base"
+secrets_string=$(secrets_json_string $db_master_user $db_master_password)
+tags_string=$(tags_string $app_name $environment)
+
+echo_subheader "Creating secretsmanager $app_name-$environment"
+echo_text "You will be prompted for another Okta Verify MFA token"
+echo
+echo_warning "DO NOT USE THE SAME TOKEN that was just used for staging"
+echo_warning "Let Okta Verify cycle to the next token"
+echo
+echo_info_content "After entering the MFA token, please select:" "prod_backend-eng"
+
+stash-okta --profile stash-prod --force
+
+secretsmanager_prod=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
+echo_success "Created secretsmanager: $secrets_name"
+
+echo
+echo_header "Secretsmanager Arns"
+echo_text "Save these values, you will need them later"
+echo_bullet $(echo ${secretsmanager_edge} | jq -r ".ARN")
+echo_bullet $(echo ${secretsmanager_staging} | jq -r ".ARN")
+echo_bullet $(echo ${secretsmanager_prod} | jq -r ".ARN")
+echo
