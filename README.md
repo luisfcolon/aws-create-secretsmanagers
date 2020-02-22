@@ -12,6 +12,16 @@ The default set of secrets are:
 }
 ```
 
+Cipher will also add a defaul set of tags:
+
+| Key         | Value                                  |
+|-------------|----------------------------------------|
+| Service     | :app_name                              |
+| Environment | :environment                           |
+| Cost_Code   | SP                                     |
+| Cost_Center | ENG                                    |
+| Name        | :app_name-secrets-manager-:environment |
+
 **Notes:**
 
 * The postgres master password will be auto generated for you.
