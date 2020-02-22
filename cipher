@@ -16,7 +16,7 @@ blue=$(tput setaf 38)
 cyan=$(tput setaf 6)
 yellow=$(tput setaf 3)
 white=$(tput setaf 7)
-light_grey=$(tput setaf 250)
+light_purple=$(tput setaf 111)
 
 display_usage() {
   cat <<EOM
@@ -51,7 +51,7 @@ echo_header() {
 
 echo_subheader() {
   echo
-  echo $cyan$bold$@$reset
+  echo $light_purple$bold$@$reset
   echo
 }
 
@@ -150,7 +150,6 @@ echo_text "You will be prompted for an Okta Verify MFA token"
 echo_info_content "After entering the MFA token, please select:" "edge_engineers"
 stash-okta --profile stash-edge --force
 secretsmanager_edge=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
-echo
 echo_success "Created secretsmanager: $secrets_name"
 
 #
@@ -174,7 +173,6 @@ echo
 echo_info_content "After entering the MFA token, please select:" "staging_backend-eng"
 stash-okta --profile stash-staging --force
 secretsmanager_staging=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
-echo
 echo_success "Created secretsmanager: $secrets_name"
 
 #
@@ -196,9 +194,7 @@ echo_warning "DO NOT USE THE SAME TOKEN that was just used for staging"
 echo_warning "Let Okta Verify cycle to the next token"
 echo
 echo_info_content "After entering the MFA token, please select:" "prod_backend-eng"
-
 stash-okta --profile stash-prod --force
-
 secretsmanager_prod=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
 echo_success "Created secretsmanager: $secrets_name"
 
