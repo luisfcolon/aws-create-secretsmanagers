@@ -2,12 +2,20 @@
 
 A shell script that will create an AWS secrets manager for your service on edge, staging, and prod.
 
-The default set of secrets are:
+If you say yes to needing database support, the default set of secrets are:
 
 ```json
 {
   "dbMasterUser": "postgres",
   "dbMasterPassword": "password",
+  "sumologicEndpoint": ""
+}
+```
+
+If you say no to needing database support, the default set of secrets are:
+
+```json
+{
   "sumologicEndpoint": ""
 }
 ```
@@ -43,7 +51,7 @@ TBD...
 
 ## Usage
 
-You will need to have your Okta Verify app open on your phone. The script will guide you on what to do.
+You will need to have Okta Verify app open on your phone. The script will guide you on what to do.
 
 ```
 ./cipher project-name
