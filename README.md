@@ -51,7 +51,7 @@ TBD...
 
 ## Usage
 
-You will need to have Okta Verify app open on your phone. The script will guide you on what to do.
+You will need to have the Okta Verify app open on your phone. Besides that, the script will guide you on what to do.
 
 ```
 ./cipher project-name
