@@ -139,7 +139,7 @@ display_instructions
 install_dependencies
 
 echo
-echo "Will this project be using a database?"
+echo "Will this project be using Postgres?"
 select yn in "Yes" "No"; do
   case $REPLY in
     1|y|Y|yes|Yes) database_support=true; break;;
@@ -149,7 +149,7 @@ done
 
 if $database_support; then
   echo
-  echo "Will this project manage database migrations using Flyway?"
+  echo "Will this project manage Postgres migrations using Flyway?"
   select yn in "Yes" "No"; do
     case $REPLY in
       1|y|Y|yes|Yes) flyway_support=true; break;;
