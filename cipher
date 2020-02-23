@@ -30,7 +30,7 @@ display_usage() {
       - sparkle-motion
 
   Usage:
-    ./maker.sh project-name
+    ./cipher project-name
 EOM
 }
 
