@@ -89,9 +89,8 @@ install_dependencies() {
 }
 
 generate_password() {
-  local environment=$1
+  local profile=$1
   excluded_characters='"/\'
-  profile="stash-$environment"
 
   echo $(aws secretsmanager get-random-password --exclude-characters $excluded_characters --password-length 32 --require-each-included-type --no-include-space --output text --profile $profile)
 }
@@ -169,11 +168,11 @@ tags_string=$(tags_string $app_name $environment)
 
 if $database_support; then
   db_master_user="${app_name//-/_}_master_user_$environment"
-  db_master_password=$(generate_password $environment)
+  db_master_password=$(generate_password $profile)
 
   if $flyway_support; then
     db_app_username="${app_name//-/_}_app_user_$environment"
-    db_app_password=$(generate_password $environment)
+    db_app_password=$(generate_password $profile)
     secrets_string=$(flyway_database_secrets_json_string $db_master_user $db_master_password $db_app_username $db_app_password)
   else
     secrets_string=$(database_secrets_json_string $db_master_user $db_master_password)
@@ -200,11 +199,11 @@ tags_string=$(tags_string $app_name $environment)
 
 if $database_support; then
   db_master_user="${app_name//-/_}_master_user_$environment"
-  db_master_password=$(generate_password $environment)
+  db_master_password=$(generate_password $profile)
 
   if $flyway_support; then
     db_app_username="${app_name//-/_}_app_user_$environment"
-    db_app_password=$(generate_password $environment)
+    db_app_password=$(generate_password $profile)
     secrets_string=$(flyway_database_secrets_json_string $db_master_user $db_master_password $db_app_username $db_app_password)
   else
     secrets_string=$(database_secrets_json_string $db_master_user $db_master_password)
@@ -235,11 +234,11 @@ tags_string=$(tags_string $app_name $environment)
 
 if $database_support; then
   db_master_user="${app_name//-/_}_master_user_$environment"
-  db_master_password=$(generate_password $environment)
+  db_master_password=$(generate_password $profile)
 
   if $flyway_support; then
     db_app_username="${app_name//-/_}_app_user_$environment"
-    db_app_password=$(generate_password $environment)
+    db_app_password=$(generate_password $profile)
     secrets_string=$(flyway_database_secrets_json_string $db_master_user $db_master_password $db_app_username $db_app_password)
   else
     secrets_string=$(database_secrets_json_string $db_master_user $db_master_password)
