@@ -15,6 +15,7 @@ cyan=$(tput setaf 6)
 yellow=$(tput setaf 3)
 white=$(tput setaf 7)
 light_purple=$(tput setaf 111)
+divider="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 display_usage() {
   cat <<EOM
@@ -43,13 +44,15 @@ EOM
 
 echo_header() {
   echo
-  echo $purple$bold"---------------[ $@ ]---------------"$reset
+  echo $purple$bold"-------------------------[ $@ ]-------------------------"$reset
   echo
 }
 
 echo_subheader() {
   echo
-  echo $light_purple$bold"----~~ $@"$reset
+  echo $light_purple$bold$divider$reset
+  echo $light_purple" $@"$reset
+  echo $light_purple$bold$divider$reset
   echo
 }
 
