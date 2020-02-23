@@ -166,6 +166,12 @@ profile="stash-$environment"
 secrets_name="$app_name-$environment"
 tags_string=$(tags_string $app_name $environment)
 
+echo_subheader "Creating secrets manager: $app_name-$environment"
+echo_text "You will be prompted for an Okta Verify MFA token"
+echo_info_content "After entering the MFA token, please select:" "edge_engineers"
+
+stash-okta --profile stash-edge --force
+
 if $database_support; then
   db_master_user="${app_name//-/_}_master_user_$environment"
   db_master_password=$(generate_password $profile)
@@ -181,11 +187,6 @@ else
   secrets_string=$(default_secrets_json_string)
 fi
 
-echo_subheader "Creating secrets manager: $app_name-$environment"
-echo_text "You will be prompted for an Okta Verify MFA token"
-echo_info_content "After entering the MFA token, please select:" "edge_engineers"
-
-stash-okta --profile stash-edge --force
 secretsmanager_edge=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
 echo_success "Created secrets manager: $secrets_name"
 
@@ -197,6 +198,16 @@ profile="stash-$environment"
 secrets_name="$app_name-$environment"
 tags_string=$(tags_string $app_name $environment)
 
+echo_subheader "Creating secrets manager: $app_name-$environment"
+echo_text "You will be prompted for another Okta Verify MFA token"
+echo
+echo_warning "DO NOT USE THE SAME TOKEN that was just used for edge"
+echo_warning "Let Okta Verify cycle to the next token"
+echo
+echo_info_content "After entering the MFA token, please select:" "staging_backend-eng"
+
+stash-okta --profile stash-staging --force
+
 if $database_support; then
   db_master_user="${app_name//-/_}_master_user_$environment"
   db_master_password=$(generate_password $profile)
@@ -212,15 +223,6 @@ else
   secrets_string=$(default_secrets_json_string)
 fi
 
-echo_subheader "Creating secrets manager: $app_name-$environment"
-echo_text "You will be prompted for another Okta Verify MFA token"
-echo
-echo_warning "DO NOT USE THE SAME TOKEN that was just used for edge"
-echo_warning "Let Okta Verify cycle to the next token"
-echo
-echo_info_content "After entering the MFA token, please select:" "staging_backend-eng"
-
-stash-okta --profile stash-staging --force
 secretsmanager_staging=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
 echo_success "Created secrets manager: $secrets_name"
 
@@ -232,6 +234,16 @@ profile="stash-$environment"
 secrets_name="$app_name-$environment"
 tags_string=$(tags_string $app_name $environment)
 
+echo_subheader "Creating secrets manager: $app_name-$environment"
+echo_text "You will be prompted for another Okta Verify MFA token"
+echo
+echo_warning "DO NOT USE THE SAME TOKEN that was just used for staging"
+echo_warning "Let Okta Verify cycle to the next token"
+echo
+echo_info_content "After entering the MFA token, please select:" "prod_backend-eng"
+
+stash-okta --profile stash-prod --force
+
 if $database_support; then
   db_master_user="${app_name//-/_}_master_user_$environment"
   db_master_password=$(generate_password $profile)
@@ -247,15 +259,6 @@ else
   secrets_string=$(default_secrets_json_string)
 fi
 
-echo_subheader "Creating secrets manager: $app_name-$environment"
-echo_text "You will be prompted for another Okta Verify MFA token"
-echo
-echo_warning "DO NOT USE THE SAME TOKEN that was just used for staging"
-echo_warning "Let Okta Verify cycle to the next token"
-echo
-echo_info_content "After entering the MFA token, please select:" "prod_backend-eng"
-
-stash-okta --profile stash-prod --force
 secretsmanager_prod=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
 echo_success "Created secrets manager: $secrets_name"
 
