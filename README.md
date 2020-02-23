@@ -4,7 +4,7 @@ A shell script that will create an AWS secrets manager for your service on edge,
 
 ### Secrets
 
-If you say yes to needing database support, the default set of secrets are:
+If you said yes to needing Postrges support, the default set of secrets are:
 
 ```json
 {
@@ -14,7 +14,20 @@ If you say yes to needing database support, the default set of secrets are:
 }
 ```
 
-If you say no to needing database support, the default set of secrets are:
+If you said yes to needing Postrges support with Flyway migrations, the default set of secrets are:
+
+```json
+{
+  "dbMasterUser": "postgres",
+  "dbMasterPassword": "password",
+  "dbUser": "user",
+  "dbPassword": "password",
+  "dbUrl": "",
+  "sumologicEndpoint": ""
+}
+```
+
+The default set of secrets are:
 
 ```json
 {
