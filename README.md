@@ -2,6 +2,8 @@
 
 A shell script that will create an AWS secrets manager for your service on edge, staging, and prod.
 
+### Secrets
+
 If you say yes to needing database support, the default set of secrets are:
 
 ```json
@@ -20,6 +22,8 @@ If you say no to needing database support, the default set of secrets are:
 }
 ```
 
+### Tags
+
 Cipher will also add a defaul set of tags:
 
 | Key         | Value                                  |
@@ -30,7 +34,7 @@ Cipher will also add a defaul set of tags:
 | Cost_Center | ENG                                    |
 | Name        | :app_name-secretsmanager-:environment  |
 
-**Notes:**
+### FYI
 
 * The postgres master password will be auto generated for you.
 * The sumologic endpoint is left blank so terraform deploys will still work while you request an actual value from devops
@@ -57,7 +61,7 @@ You will need to have the Okta Verify app open on your phone. Besides that, the 
 ./cipher project-name
 ```
 
-Follow the instructions provided. When the script is complete you will have a secretsmanager setup on edge, staging, and prod.
+Follow the instructions provided. When the script is complete you will have a secrets manager setup on edge, staging, and prod populated with the minimal key/values needed to get a new service started.
 
 ## Example output
 
