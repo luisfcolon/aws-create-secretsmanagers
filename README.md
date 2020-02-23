@@ -49,7 +49,8 @@ Cipher will also add a defaul set of tags:
 
 ### FYI
 
-* The postgres master password will be auto generated for you.
+* The postgres master user password will be auto generated for you.
+* The postgres app user password will be auto generated for you.
 * The sumologic endpoint is left blank so terraform deploys will still work while you request an actual value from devops
 
 ## Requirements
