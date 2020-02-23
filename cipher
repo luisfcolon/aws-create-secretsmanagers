@@ -88,14 +88,10 @@ install_dependencies() {
   fi
 }
 
-password_prefix() {
-  echo "$(date | md5sum | head -c 4)"
-}
-
 generate_password() {
   local environment=$1
-  local excluded_characters='"/\'
-  local profile="stash-$environment"
+  excluded_characters='"/\'
+  profile="stash-$environment"
 
   echo $(aws secretsmanager get-random-password --exclude-characters $excluded_characters --password-length 32 --require-each-included-type --no-include-space --output text --profile $profile)
 }
@@ -111,12 +107,21 @@ default_secrets_json_string() {
   echo "{\"sumologicEndpoint\": \"\"}"
 }
 
+flyway_database_secrets_json_string() {
+  local master_username=${1}
+  local master_password=${2}
+  local app_username=${3}
+  local app_password=${4}
+
+  echo "{\"dbMasterUser\": \"$master_username\", \"dbMasterPassword\": \"$master_password\", \"dbUser\": \"$app_username\", \"dbPassword\": \"$app_password\", \"dbUrl\": \"\", \"sumologicEndpoint\": \"\"}"
+}
+
 tags_string() {
   local app_name=${1}
   local environment=${2}
-  local cost_code="SP"
-  local cost_center="ENG"
-  local name="$app_name-secretsmanager-$environment"
+  cost_code="SP"
+  cost_center="ENG"
+  name="$app_name-secretsmanager-$environment"
 
    echo "[{\"Key\": \"Name\", \"Value\": \"$name\"}, {\"Key\": \"Service\", \"Value\": \"$app_name\"}, {\"Key\": \"Environment\", \"Value\": \"$environment\"}, {\"Key\": \"Cost_Code\", \"Value\": \"SP\"}, {\"Key\": \"Cost_Center\", \"Value\": \"ENG\"}]"
 }
@@ -128,6 +133,7 @@ fi
 
 app_name=$1
 database_support=false
+flyway_support=false
 
 echo_header "Secrets Managers for $app_name"
 display_instructions
@@ -137,10 +143,21 @@ echo
 echo "Will this project be using a database?"
 select yn in "Yes" "No"; do
   case $REPLY in
-    1|y|Y|yes|Yes|YES) database_support=true; break;;
-    2|n|N|no|No|NO) database_support=false; break;;
+    1|y|Y|yes|Yes) database_support=true; break;;
+    2|n|N|no|No) database_support=false; break;;
   esac
 done
+
+if $database_support; then
+  echo
+  echo "Will this project manage database migrations using Flyway?"
+  select yn in "Yes" "No"; do
+    case $REPLY in
+      1|y|Y|yes|Yes) flyway_support=true; break;;
+      2|n|N|no|No) flyway_support=false; break;;
+    esac
+  done
+fi
 
 #
 # Edge
@@ -151,22 +168,27 @@ secrets_name="$app_name-$environment"
 tags_string=$(tags_string $app_name $environment)
 
 if $database_support; then
-  db_master_user="postgres"
-  db_master_password_prefix=$(password_prefix)
-  db_master_password_base=$(generate_password $environment)
-  db_master_password="$db_master_password_prefix$db_master_password_base"
-  secrets_string=$(database_secrets_json_string $db_master_user $db_master_password)
+  db_master_user="${app_name//-/_}_master_user_$environment"
+  db_master_password=$(generate_password $environment)
+
+  if $flyway_support; then
+    db_app_username="${app_name//-/_}_app_user_$environment"
+    db_app_password=$(generate_password $environment)
+    secrets_string=$(flyway_database_secrets_json_string $db_master_user $db_master_password $db_app_username $db_app_password)
+  else
+    secrets_string=$(database_secrets_json_string $db_master_user $db_master_password)
+  fi
 else
   secrets_string=$(default_secrets_json_string)
 fi
 
-echo_subheader "Creating secretsmanager $app_name-$environment"
+echo_subheader "Creating secrets manager: $app_name-$environment"
 echo_text "You will be prompted for an Okta Verify MFA token"
 echo_info_content "After entering the MFA token, please select:" "edge_engineers"
 
 stash-okta --profile stash-edge --force
 secretsmanager_edge=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
-echo_success "Created secretsmanager: $secrets_name"
+echo_success "Created secrets manager: $secrets_name"
 
 #
 # Staging
@@ -177,16 +199,21 @@ secrets_name="$app_name-$environment"
 tags_string=$(tags_string $app_name $environment)
 
 if $database_support; then
-  db_master_user="postgres"
-  db_master_password_prefix=$(password_prefix)
-  db_master_password_base=$(generate_password $environment)
-  db_master_password="$db_master_password_prefix$db_master_password_base"
-  secrets_string=$(database_secrets_json_string $db_master_user $db_master_password)
+  db_master_user="${app_name//-/_}_master_user_$environment"
+  db_master_password=$(generate_password $environment)
+
+  if $flyway_support; then
+    db_app_username="${app_name//-/_}_app_user_$environment"
+    db_app_password=$(generate_password $environment)
+    secrets_string=$(flyway_database_secrets_json_string $db_master_user $db_master_password $db_app_username $db_app_password)
+  else
+    secrets_string=$(database_secrets_json_string $db_master_user $db_master_password)
+  fi
 else
   secrets_string=$(default_secrets_json_string)
 fi
 
-echo_subheader "Creating secretsmanager $app_name-$environment"
+echo_subheader "Creating secrets manager: $app_name-$environment"
 echo_text "You will be prompted for another Okta Verify MFA token"
 echo
 echo_warning "DO NOT USE THE SAME TOKEN that was just used for edge"
@@ -196,7 +223,7 @@ echo_info_content "After entering the MFA token, please select:" "staging_backen
 
 stash-okta --profile stash-staging --force
 secretsmanager_staging=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
-echo_success "Created secretsmanager: $secrets_name"
+echo_success "Created secrets manager: $secrets_name"
 
 #
 # Prod
@@ -207,16 +234,21 @@ secrets_name="$app_name-$environment"
 tags_string=$(tags_string $app_name $environment)
 
 if $database_support; then
-  db_master_user="postgres"
-  db_master_password_prefix=$(password_prefix)
-  db_master_password_base=$(generate_password $environment)
-  db_master_password="$db_master_password_prefix$db_master_password_base"
-  secrets_string=$(database_secrets_json_string $db_master_user $db_master_password)
+  db_master_user="${app_name//-/_}_master_user_$environment"
+  db_master_password=$(generate_password $environment)
+
+  if $flyway_support; then
+    db_app_username="${app_name//-/_}_app_user_$environment"
+    db_app_password=$(generate_password $environment)
+    secrets_string=$(flyway_database_secrets_json_string $db_master_user $db_master_password $db_app_username $db_app_password)
+  else
+    secrets_string=$(database_secrets_json_string $db_master_user $db_master_password)
+  fi
 else
   secrets_string=$(default_secrets_json_string)
 fi
 
-echo_subheader "Creating secretsmanager $app_name-$environment"
+echo_subheader "Creating secrets manager: $app_name-$environment"
 echo_text "You will be prompted for another Okta Verify MFA token"
 echo
 echo_warning "DO NOT USE THE SAME TOKEN that was just used for staging"
@@ -226,12 +258,11 @@ echo_info_content "After entering the MFA token, please select:" "prod_backend-e
 
 stash-okta --profile stash-prod --force
 secretsmanager_prod=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
-echo_success "Created secretsmanager: $secrets_name"
+echo_success "Created secrets manager: $secrets_name"
 
 echo
 echo_header "Secrets Manager Arns"
 echo_text "Save these values, you will need them later"
-echo
 echo_bullet $(echo ${secretsmanager_edge} | jq -r ".ARN")
 echo_bullet $(echo ${secretsmanager_staging} | jq -r ".ARN")
 echo_bullet $(echo ${secretsmanager_prod} | jq -r ".ARN")
