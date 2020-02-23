@@ -8,9 +8,7 @@ clear
 
 bold=$(tput bold)
 reset=$(tput sgr0)
-
 purple=$(tput setaf 171)
-red=$(tput setaf 1)
 green=$(tput setaf 76)
 blue=$(tput setaf 38)
 cyan=$(tput setaf 6)
@@ -21,7 +19,7 @@ light_purple=$(tput setaf 111)
 display_usage() {
   cat <<EOM
 
-  ##### Create aws secretsmanagers #####
+  ##### Create aws secrets managers #####
 
   Required arugments:
     - The only argument required is the project name
@@ -51,7 +49,7 @@ echo_header() {
 
 echo_subheader() {
   echo
-  echo $light_purple$bold$@$reset
+  echo $light_purple$bold"----~~ $@"$reset
   echo
 }
 
@@ -59,16 +57,12 @@ echo_success() {
   echo $bold$green"✔"$reset $green$@$reset
 }
 
-echo_error() {
-  echo $bold$red"✖"$reset $red$@$reset
-}
-
 echo_warning() {
   echo $bold$yellow"⌀"$reset $yellow$@$reset $bold$yellow"⌀"$reset
 }
 
 echo_bullet() {
-  echo $blue$bold"  •"$reset $blue$@$reset
+  echo $blue$bold" •"$reset $blue$@$reset
 }
 
 echo_info() {
@@ -84,6 +78,16 @@ echo_info_content() {
   echo_info $2
 }
 
+install_dependencies() {
+  if ! brew ls --versions jq > /dev/null; then
+    echo
+    echo_bullet "Installing jq"
+    echo
+    brew install jq
+    echo
+  fi
+}
+
 password_prefix() {
   echo "$(date | md5sum | head -c 4)"
 }
@@ -96,11 +100,15 @@ generate_password() {
   echo $(aws secretsmanager get-random-password --exclude-characters $excluded_characters --password-length 32 --require-each-included-type --no-include-space --output text --profile $profile)
 }
 
-secrets_json_string() {
+database_secrets_json_string() {
   local username=${1}
   local password=${2}
 
   echo "{\"dbMasterUser\": \"$username\", \"dbMasterPassword\": \"$password\", \"sumologicEndpoint\": \"\"}"
+}
+
+default_secrets_json_string() {
+  echo "{\"sumologicEndpoint\": \"\"}"
 }
 
 tags_string() {
@@ -119,19 +127,20 @@ if [ -z "$1" ]; then
 fi
 
 app_name=$1
-db_master_user="postgres"
+database_support=false
 
-echo_header "Secretsmanagers for $app_name"
+echo_header "Secrets Managers for $app_name"
 display_instructions
+install_dependencies
 
-if ! brew ls --versions jq > /dev/null; then
-  echo
-  echo_text "Some dependencies are missing"
-  echo_bullet "Installing jq"
-  echo
-  brew install jq
-  echo
-fi
+echo
+echo "Will this project be using a database?"
+select yn in "Yes" "No"; do
+  case $REPLY in
+    1|y|Y|yes|Yes|YES) database_support=true; break;;
+    2|n|N|no|No|NO) database_support=false; break;;
+  esac
+done
 
 #
 # Edge
@@ -139,15 +148,22 @@ fi
 environment="edge"
 profile="stash-$environment"
 secrets_name="$app_name-$environment"
-db_master_password_prefix=$(password_prefix)
-db_master_password_base=$(generate_password $environment)
-db_master_password="$db_master_password_prefix$db_master_password_base"
-secrets_string=$(secrets_json_string $db_master_user $db_master_password)
 tags_string=$(tags_string $app_name $environment)
+
+if $database_support; then
+  db_master_user="postgres"
+  db_master_password_prefix=$(password_prefix)
+  db_master_password_base=$(generate_password $environment)
+  db_master_password="$db_master_password_prefix$db_master_password_base"
+  secrets_string=$(database_secrets_json_string $db_master_user $db_master_password)
+else
+  secrets_string=$(default_secrets_json_string)
+fi
 
 echo_subheader "Creating secretsmanager $app_name-$environment"
 echo_text "You will be prompted for an Okta Verify MFA token"
 echo_info_content "After entering the MFA token, please select:" "edge_engineers"
+
 stash-okta --profile stash-edge --force
 secretsmanager_edge=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
 echo_success "Created secretsmanager: $secrets_name"
@@ -158,11 +174,17 @@ echo_success "Created secretsmanager: $secrets_name"
 environment="staging"
 profile="stash-$environment"
 secrets_name="$app_name-$environment"
-db_master_password_prefix=$(password_prefix)
-db_master_password_base=$(generate_password $environment)
-db_master_password="$db_master_password_prefix$db_master_password_base"
-secrets_string=$(secrets_json_string $db_master_user $db_master_password)
 tags_string=$(tags_string $app_name $environment)
+
+if $database_support; then
+  db_master_user="postgres"
+  db_master_password_prefix=$(password_prefix)
+  db_master_password_base=$(generate_password $environment)
+  db_master_password="$db_master_password_prefix$db_master_password_base"
+  secrets_string=$(database_secrets_json_string $db_master_user $db_master_password)
+else
+  secrets_string=$(default_secrets_json_string)
+fi
 
 echo_subheader "Creating secretsmanager $app_name-$environment"
 echo_text "You will be prompted for another Okta Verify MFA token"
@@ -171,6 +193,7 @@ echo_warning "DO NOT USE THE SAME TOKEN that was just used for edge"
 echo_warning "Let Okta Verify cycle to the next token"
 echo
 echo_info_content "After entering the MFA token, please select:" "staging_backend-eng"
+
 stash-okta --profile stash-staging --force
 secretsmanager_staging=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
 echo_success "Created secretsmanager: $secrets_name"
@@ -181,11 +204,17 @@ echo_success "Created secretsmanager: $secrets_name"
 environment="prod"
 profile="stash-$environment"
 secrets_name="$app_name-$environment"
-db_master_password_prefix=$(password_prefix)
-db_master_password_base=$(generate_password $environment)
-db_master_password="$db_master_password_prefix$db_master_password_base"
-secrets_string=$(secrets_json_string $db_master_user $db_master_password)
 tags_string=$(tags_string $app_name $environment)
+
+if $database_support; then
+  db_master_user="postgres"
+  db_master_password_prefix=$(password_prefix)
+  db_master_password_base=$(generate_password $environment)
+  db_master_password="$db_master_password_prefix$db_master_password_base"
+  secrets_string=$(database_secrets_json_string $db_master_user $db_master_password)
+else
+  secrets_string=$(default_secrets_json_string)
+fi
 
 echo_subheader "Creating secretsmanager $app_name-$environment"
 echo_text "You will be prompted for another Okta Verify MFA token"
@@ -194,13 +223,15 @@ echo_warning "DO NOT USE THE SAME TOKEN that was just used for staging"
 echo_warning "Let Okta Verify cycle to the next token"
 echo
 echo_info_content "After entering the MFA token, please select:" "prod_backend-eng"
+
 stash-okta --profile stash-prod --force
 secretsmanager_prod=$(aws secretsmanager create-secret --name "$secrets_name" --description "Secrets for $app_name" --secret-string "$secrets_string" --tags "$tags_string" --profile $profile)
 echo_success "Created secretsmanager: $secrets_name"
 
 echo
-echo_header "Secretsmanager Arns"
+echo_header "Secrets Manager Arns"
 echo_text "Save these values, you will need them later"
+echo
 echo_bullet $(echo ${secretsmanager_edge} | jq -r ".ARN")
 echo_bullet $(echo ${secretsmanager_staging} | jq -r ".ARN")
 echo_bullet $(echo ${secretsmanager_prod} | jq -r ".ARN")
