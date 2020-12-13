@@ -77,7 +77,3 @@ You will need to have the Okta Verify app open on your phone. Besides that, the 
 ```
 
 Follow the instructions provided. When the script is complete you will have a secrets manager setup on edge, staging, and prod populated with the minimal key/values needed to get a new service started.
-
-## Example output
-
-![Cipher](./docs/images/cipher_final_output.png)
